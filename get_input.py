@@ -12,10 +12,10 @@ def get_input(day, year):
         with open(file_name, 'r') as f:
             return f.read()
     except FileNotFoundError:
-        r = requests.get("{}/{}/day/{}/input".format(AOE_URL, year, day),
-                     cookies=dict(session=os.environ.get(SESSION_KEY)))
+        url = "{}/{}/day/{}/input".format(AOE_URL, year, day)
+        r = requests.get(url, cookies=dict(session=os.environ.get(SESSION_KEY)))
         if not r.ok:
-            raise RuntimeError("Could not get the input: {}: {}".format(
+            raise RuntimeError("Could not get {}: {}: {}".format(url,
                 r.status_code, r.reason))
         with open(file_name, 'w') as f:
             f.write(r.text)
