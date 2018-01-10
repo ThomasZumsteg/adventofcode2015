@@ -6,16 +6,19 @@ from functools import wraps
 from copy import deepcopy
 
 class Boss(object):
-    def __init__(self, hp, attack):
+    def __init__(self, hp, attack, defence=0):
         self.hp = hp
         self.callbacks = []
         self.player = False
-        def simple_attack(attacker, defender):
-            attacker.tick()
-            if attacker.hp > 0:
-                defender.tick()
-                defender.hp -= max(1, attack - getattr(defender, '_shield', 0))
-        self.attacks = [simple_attack]
+        self.defence = 0
+        self.attack = attack
+        self.attacks = [Boss.simple_attack]
+
+    def simple_attack(attacker, defender):
+        attacker.tick()
+        defender.tick()
+        if attacker.hp > 0:
+            defender.hp -= max(1, attacker.attack - defender.defence)
 
     def tick(caster):
         callbacks, caster.callbacks = caster.callbacks, []
@@ -32,10 +35,10 @@ SPELLS = []
 
 class Player(object):
 
-    def __init__(self, mana=500, health=50):
+    def __init__(self, defence=0, mana=500, hp=50):
         self.mana = mana
-        self._shield = 0
-        self.hp = 50
+        self.defence = defence 
+        self.hp = hp 
         self.used = 0
         self.spells = []
         self.cooldown = defaultdict(int)
@@ -61,8 +64,8 @@ class Player(object):
                 caster.mana -= cost
                 caster.used += cost
                 caster.tick()
+                target.tick()
                 if caster.hp > 0:
-                    target.tick()
                     spell(caster, target)
                     caster.spells.append(spell.__name__)
                     caster.cooldown[spell.__name__] = cooldown
@@ -91,13 +94,13 @@ class Player(object):
 
     @spell(113, cooldown=6)
     def shield(caster, target):
-        caster._shield += 7
+        caster.defence += 7
         def shield_callback(turns):
             def shield_func(caster):
                 if turns > 1:
                     caster.add_callback(shield_callback(turns-1))
                 else:
-                    caster._shield -= 7
+                    caster.defence -= 7
             return shield_func
         caster.add_callback(shield_callback(6))
 
@@ -115,11 +118,66 @@ class Player(object):
     def recharge(caster, target):
         def recharge_callback(turns):
             def recharge_func(caster):
+                # old_mana = caster.mana
                 caster.mana += 101
+                # print("Recharging {}: {} -> {}".format(caster.cooldown['recharge'], old_mana, caster.mana))
                 if turns > 1:
                     caster.add_callback(recharge_callback(turns-1))
             return recharge_func
         caster.add_callback(recharge_callback(5))
+
+def test_example_1():
+    player = Player(hp=10, mana=250)
+    boss = Boss(hp=13, attack=8)
+    player.poison(boss)
+    assert player.hp == 10 and player.mana == 77
+    boss.attacks[0](boss, player)
+    assert boss.hp == 10 and player.cooldown['poison'] == 5
+    assert player.hp == 2
+    player.magic_missle(boss)
+    assert boss.hp == 3 and player.mana == 24 and player.cooldown['poison'] == 4
+    boss.simple_attack(player)
+    assert player.hp == 2 and boss.hp == 0
+
+def test_example_2():
+    player = Player(hp=10, mana=250)
+    boss = Boss(hp=14, attack=8)
+    player.recharge(boss)
+    assert player.hp == 10 and player.mana == 21
+    boss.simple_attack(player)
+    assert player.mana == 122 and player.hp == 2 and player.cooldown['recharge'] == 4
+    player.shield(boss)
+    assert player.mana == 110 and player.hp == 2 and player.defence == 7
+    assert player.cooldown['recharge'] == 3
+    boss.simple_attack(player)
+    assert player.mana == 211 and player.hp == 1
+    assert boss.hp == 14
+    assert player.cooldown['recharge'] == 2 and player.cooldown['shield'] == 5
+    player.drain(boss)
+    assert player.mana == 239 and player.hp == 3
+    assert player.cooldown['recharge'] == 1 and player.cooldown['shield'] == 4
+    assert boss.hp == 12
+    boss.simple_attack(player)
+    assert player.mana == 340 and player.hp == 2
+    assert player.cooldown['recharge'] == 0 and player.cooldown['shield'] == 3
+    assert boss.hp == 12
+    player.poison(boss)
+    assert player.mana == 167 and player.hp == 2
+    assert player.cooldown['poison'] == 6 and player.cooldown['shield'] == 2
+    assert player.cooldown['recharge'] == 0
+    assert boss.hp == 12
+    boss.simple_attack(player)
+    assert player.mana == 167 and player.hp == 1 and player.defence == 7
+    assert player.cooldown['poison'] == 5 and player.cooldown['shield'] == 1
+    assert boss.hp == 9
+    player.magic_missle(boss)
+    assert player.mana == 114 and player.hp == 1 and player.defence == 0
+    assert player.cooldown['poison'] == 4 and player.cooldown['shield'] == 0
+    assert boss.hp == 2
+    boss.simple_attack(player)
+    assert player.mana == 114 and player.hp == 1
+    assert player.cooldown['poison'] == 3
+    assert boss.hp == -1 
 
 def worth_it(player, boss, min_mana):
     if player.hp <= 0 or boss.hp <= 0:
