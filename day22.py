@@ -15,8 +15,6 @@ class Boss(object):
         self.attacks = [Boss.simple_attack]
 
     def simple_attack(attacker, defender):
-        attacker.tick()
-        defender.tick()
         if attacker.hp > 0:
             defender.hp -= max(1, attacker.attack - defender.defence)
 
@@ -63,8 +61,6 @@ class Player(object):
                         caster.cooldown[spell.__name__]))
                 caster.mana -= cost
                 caster.used += cost
-                caster.tick()
-                target.tick()
                 if caster.hp > 0:
                     spell(caster, target)
                     caster.spells.append(spell.__name__)
@@ -131,11 +127,18 @@ def test_example_1():
     boss = Boss(hp=13, attack=8)
     player.poison(boss)
     assert player.hp == 10 and player.mana == 77
-    boss.attacks[0](boss, player)
+    assert boss.hp == 13
+    player.tick()
+    boss.tick()
+    boss.simple_attack(player)
     assert boss.hp == 10 and player.cooldown['poison'] == 5
     assert player.hp == 2
+    player.tick()
+    boss.tick()
     player.magic_missle(boss)
     assert boss.hp == 3 and player.mana == 24 and player.cooldown['poison'] == 4
+    player.tick()
+    boss.tick()
     boss.simple_attack(player)
     assert player.hp == 2 and boss.hp == 0
 
@@ -144,36 +147,54 @@ def test_example_2():
     boss = Boss(hp=14, attack=8)
     player.recharge(boss)
     assert player.hp == 10 and player.mana == 21
+    player.tick()
+    boss.tick()
     boss.simple_attack(player)
     assert player.mana == 122 and player.hp == 2 and player.cooldown['recharge'] == 4
+    player.tick()
+    boss.tick()
     player.shield(boss)
     assert player.mana == 110 and player.hp == 2 and player.defence == 7
     assert player.cooldown['recharge'] == 3
+    player.tick()
+    boss.tick()
     boss.simple_attack(player)
     assert player.mana == 211 and player.hp == 1
     assert boss.hp == 14
     assert player.cooldown['recharge'] == 2 and player.cooldown['shield'] == 5
+    player.tick()
+    boss.tick()
     player.drain(boss)
     assert player.mana == 239 and player.hp == 3
     assert player.cooldown['recharge'] == 1 and player.cooldown['shield'] == 4
     assert boss.hp == 12
+    player.tick()
+    boss.tick()
     boss.simple_attack(player)
     assert player.mana == 340 and player.hp == 2
     assert player.cooldown['recharge'] == 0 and player.cooldown['shield'] == 3
     assert boss.hp == 12
+    player.tick()
+    boss.tick()
     player.poison(boss)
     assert player.mana == 167 and player.hp == 2
     assert player.cooldown['poison'] == 6 and player.cooldown['shield'] == 2
     assert player.cooldown['recharge'] == 0
     assert boss.hp == 12
+    player.tick()
+    boss.tick()
     boss.simple_attack(player)
     assert player.mana == 167 and player.hp == 1 and player.defence == 7
     assert player.cooldown['poison'] == 5 and player.cooldown['shield'] == 1
     assert boss.hp == 9
+    player.tick()
+    boss.tick()
     player.magic_missle(boss)
     assert player.mana == 114 and player.hp == 1 and player.defence == 0
     assert player.cooldown['poison'] == 4 and player.cooldown['shield'] == 0
     assert boss.hp == 2
+    player.tick()
+    boss.tick()
     boss.simple_attack(player)
     assert player.mana == 114 and player.hp == 1
     assert player.cooldown['poison'] == 3
@@ -185,7 +206,7 @@ def worth_it(player, boss, min_mana):
     if min_mana is None:
         return True
     if boss.player:
-        player, boss = boss, player
+        player = boss
     return player.used < min_mana
 
 def part1(player, boss):
@@ -193,13 +214,16 @@ def part1(player, boss):
     queue = [(player, boss)]
     while queue:
         attacker, defender = queue.pop()
+        attacker.tick()
+        defender.tick()
         for attack in attacker.attacks:
             a, d = deepcopy(attacker), deepcopy(defender)
 
-            try:
-                attack(a, d)
-            except SpellException as e:
-                continue
+            if a.hp > 0:
+                try:
+                    attack(a, d)
+                except SpellException as e:
+                    continue
 
             if d.hp <= 0 and not d.player:
                 min_mana = min(min_mana or a.used, a.used)
@@ -207,9 +231,9 @@ def part1(player, boss):
                 x, y = a, d
                 if d.player:
                     y, x = x, y
-                print('{} {:4s} Boss: {:2} Player: {:2} {:3} {}'.format(
-                    'B' if d.player else 'P', str(min_mana), y.hp,
-                    x.hp, x.mana,','.join(x.spells)))
+                # print('{} {:4s} Boss: {:2} Player: {:2} {:3} {}'.format(
+                #     'B' if d.player else 'P', str(min_mana), y.hp,
+                #     x.hp, x.mana,','.join(x.spells)))
                 queue.append((d, a))
     return min_mana
 
@@ -218,11 +242,15 @@ def part2(player, boss):
     queue = [(player, boss)]
     while queue:
         attacker, defender = queue.pop()
+        if attacker.player:
+            if attacker.hp == 1:
+                continue
+            attacker.hp -= 1
+        attacker.tick()
+        defender.tick()
         for attack in attacker.attacks:
             a, d = deepcopy(attacker), deepcopy(defender)
 
-            if a.player:
-                a.hp -= 1
 
             if a.hp > 0:
                 try:
@@ -232,7 +260,7 @@ def part2(player, boss):
 
             if (d.hp <= 0 and a.player) or (a.hp <= 0 and d.player):
                 if d.hp <=0 and a.hp <= 0:
-                    print("Both dead")
+                    raise Exception("Both dead")
                 if d.player:
                     a = d
                 min_mana = min(min_mana or a.used, a.used)
@@ -258,6 +286,5 @@ def parse(text):
 
 if __name__ == '__main__':
     boss, player = parse(get_input(day=22, year=2015))
-    # print("Part 1: {}".format(part1(player, boss)))
-    # Not 1309,1295
+    print("Part 1: {}".format(part1(player, boss)))
     print("Part 2: {}".format(part2(player, boss)))
