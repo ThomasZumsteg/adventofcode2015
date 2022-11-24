@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 md5 = "0.7.0"
+regex = "1.7.0"
 
 [lib]
 name="common"
@@ -29,3 +30,7 @@ path="day04.rs"
 [[bin]]
 name="day05"
 path="day05.rs"
+
+[[bin]]
+name="day06"
+path="day06.rs"
