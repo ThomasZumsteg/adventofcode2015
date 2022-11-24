@@ -1,0 +1,14 @@
+[package]
+name = "adventofcode2015"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[lib]
+name="common"
+path="lib.rs"
+
+[[bin]]
+name="day01"
+path="day01.rs"
