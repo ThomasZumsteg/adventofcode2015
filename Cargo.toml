@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 md5 = "0.7.0"
 regex = "1.7.0"
+serde_json = "1.0.89"
 
 [lib]
 name="common"
@@ -54,3 +55,7 @@ path="day10.rs"
 [[bin]]
 name="day11"
 path="day11.rs"
+
+[[bin]]
+name="day12"
+path="day12.rs"
