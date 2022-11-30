@@ -47,16 +47,16 @@ def distribute_gen(buckets, volume):
             i = 1
             while dist[0] < 0:
                 if i+1 >= len(dist):
-                    raise StopIteration 
+                    return StopIteration
                 dist[i+1] += 1
                 dist[0] += dist[i] - 1
                 dist[i] = 0
                 i += 1
 
 def parse(line):
-    ingredient = re.compile(r'(?P<name>\w+): capacity (?P<capacity>-?\d+), ' +
-            'durability (?P<durability>-?\d+), flavor (?P<flavor>-?\d+), ' +
-            'texture (?P<texture>-?\d+), calories (?P<calories>-?\d+)')
+    ingredient = re.compile(r'(?P<name>\w+): capacity (?P<capacity>-?\d+), '
+            r'durability (?P<durability>-?\d+), flavor (?P<flavor>-?\d+), '
+            r'texture (?P<texture>-?\d+), calories (?P<calories>-?\d+)')
     m = ingredient.match(line)
     return {k: int(v) if k != 'name' else v for k, v in m.groupdict().items()}
 
